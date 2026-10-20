@@ -42,6 +42,7 @@ export default function Home() {
   const [newAmount, setNewAmount] = useState("99");
   const [paypalLoading, setPaypalLoading] = useState(false);
   const [paypalMessage, setPaypalMessage] = useState("");
+  const [aiProviderStatus, setAiProviderStatus] = useState<{ configured: boolean; model: string | null } | null>(null);
 
   useEffect(() => {
     try {
@@ -75,6 +76,25 @@ export default function Home() {
       // The dashboard remains usable if browser storage is disabled or full.
     }
   }, [orders, ordersLoaded]);
+
+  useEffect(() => {
+    let active = true;
+    fetch("/api/assistant/status", { cache: "no-store" })
+      .then(async (result) => {
+        if (!result.ok) throw new Error("Assistant status unavailable");
+        const data = await result.json();
+        if (active && typeof data.configured === "boolean") {
+          setAiProviderStatus({
+            configured: data.configured,
+            model: typeof data.model === "string" ? data.model : null
+          });
+        }
+      })
+      .catch(() => {
+        if (active) setAiProviderStatus(null);
+      });
+    return () => { active = false; };
+  }, []);
 
   const visibleOrders = useMemo(() => orders.filter((order) => {
     const matchesSearch = [order.id, order.customer, order.item].some((value) => value.toLowerCase().includes(orderQuery.toLowerCase()));
@@ -297,7 +317,7 @@ export default function Home() {
               <div className="bottom-row">
                 <article className="bottom-card"><div className="bottom-icon paypal-icon"><WalletCards size={18} /></div><div><strong>PayPal Sandbox</strong><p>Create a $1 test checkout and verify the approval/capture flow.</p><span className="coming-soon">SANDBOX ONLY</span><button className="secondary-button" style={{ position: "static", marginTop: "10px" }} disabled={paypalLoading} onClick={startPayPalSandboxCheckout}>{paypalLoading ? "Preparing checkout…" : "Test $1 Sandbox checkout"}</button>{paypalMessage && <small role="status" style={{ display: "block", marginTop: "8px", color: "#b54735" }}>{paypalMessage}</small>}</div></article>
                 <article className="bottom-card"><div className="bottom-icon"><Store size={18} /></div><div><strong>Store platform</strong><p>No Shopify, WooCommerce, or live store connection is configured.</p><span className="coming-soon">NOT CONNECTED</span></div></article>
-                <article className="bottom-card"><div className="bottom-icon green"><Bot size={18} /></div><div><strong>AI provider</strong><p>Gemini is optional; without a server-side GEMINI_API_KEY, the assistant uses rules.</p><span className="coming-soon">RULE-BASED</span></div></article>
+                <article className="bottom-card"><div className="bottom-icon green"><Bot size={18} /></div><div><strong>AI provider</strong><p>{aiProviderStatus === null ? "Provider status could not be checked." : aiProviderStatus.configured ? `Gemini is configured (${aiProviderStatus.model}). The first prompt verifies whether the provider responds.` : "Gemini is not configured; the assistant uses the rule-based fallback."}</p><span className="coming-soon">{aiProviderStatus === null ? "STATUS UNKNOWN" : aiProviderStatus.configured ? "GEMINI CONFIGURED" : "RULE-BASED"}</span></div></article>
               </div>
               <div className="assistant-response"><div><ShieldCheck size={14} /> Safe setup</div><p>In Vercel Project Settings → Environment Variables, add PAYPAL_CLIENT_ID and PAYPAL_CLIENT_SECRET for Sandbox payments, and optionally GEMINI_API_KEY to enable the LLM assistant. Never paste secrets into GitHub or this chat. Keep PayPal in Sandbox for testing.</p></div>
             </section>
