@@ -19,7 +19,7 @@ AgentFlow AI is a standalone hackathon project. It is completely separate from T
 
 - Orders in the dashboard are sample data saved in the current browser's local storage; they are not stored in a database or shared between devices.
 - The assistant uses a server-side Gemini model when GEMINI_API_KEY is configured; without it, it falls back to deterministic rules.
-- The PayPal endpoints are not yet wired to a checkout button in the dashboard.
+- The Integrations page includes a $1 PayPal Sandbox test checkout with approval, return, and capture status handling. It is for test accounts only.
 - PayPal integration requires your own Sandbox REST app credentials.
 - Gemini integration is optional and uses a server-side GEMINI_API_KEY; without the key, the rule-based fallback remains available.
 - **This prototype intentionally blocks live PayPal mode.** Before any real-money use, add authentication, verify order ownership, persistent storage, rate limiting, audit logging, error monitoring, tests, and a security review.
