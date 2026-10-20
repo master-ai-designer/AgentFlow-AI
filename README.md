@@ -18,9 +18,10 @@ AgentFlow AI is a standalone hackathon project. It is completely separate from T
 ## Important status and safety notes
 
 - Orders in the dashboard are sample data held in page memory; refreshing resets demo-created orders.
-- The assistant endpoint currently uses deterministic rules, not a connected LLM.
+- The assistant uses a server-side Gemini model when GEMINI_API_KEY is configured; without it, it falls back to deterministic rules.
 - The PayPal endpoints are not yet wired to a checkout button in the dashboard.
 - PayPal integration requires your own Sandbox REST app credentials.
+- Gemini integration is optional and uses a server-side GEMINI_API_KEY; without the key, the rule-based fallback remains available.
 - **This prototype intentionally blocks live PayPal mode.** Before any real-money use, add authentication, verify order ownership, persistent storage, rate limiting, audit logging, error monitoring, tests, and a security review.
 - Never paste real credentials into GitHub or expose PAYPAL_CLIENT_SECRET to browser code.
 
@@ -31,8 +32,9 @@ Requirements: Node.js 18.17 or later.
 1. Copy .env.example to .env.local.
 2. Create a REST app in the PayPal Developer Dashboard's Sandbox environment.
 3. Put the Sandbox client ID and secret into .env.local.
-4. Keep PAYPAL_ENVIRONMENT=sandbox.
-5. Install and run:
+4. Optionally add GEMINI_API_KEY from Google AI Studio to enable the LLM assistant; set GEMINI_MODEL only if you want to override the default.
+5. Keep PAYPAL_ENVIRONMENT=sandbox.
+6. Install and run:
 
 ```bash
 npm install
