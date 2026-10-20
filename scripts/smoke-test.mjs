@@ -27,6 +27,12 @@ try {
   assert.equal(homepage.headers.get("x-frame-options"), "DENY", "framing should be blocked");
   console.log("PASS: homepage returns HTTP 200 with baseline security headers");
 
+  for (const path of ["/payments/return", "/payments/cancel"]) {
+    const response = await fetch(`${baseUrl}${path}`);
+    assert.equal(response.status, 200, `${path} should render`);
+  }
+  console.log("PASS: PayPal return and cancellation pages render");
+
   const assistantResponse = await fetch(`${baseUrl}/api/assistant`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
