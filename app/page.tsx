@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Activity, ArrowDownRight, ArrowUpRight, ArrowUpRightFromSquare, Bot, Check,
   ChevronDown, CircleHelp, Command, CreditCard, Ellipsis, Filter, Headphones,
@@ -38,6 +38,35 @@ export default function Home() {
   const [showNewOrder, setShowNewOrder] = useState(false);
   const [newCustomer, setNewCustomer] = useState("");
   const [newAmount, setNewAmount] = useState("99");
+
+  useEffect(() => {
+    try {
+      const saved = window.localStorage.getItem("agentflow-demo-orders");
+      if (!saved) return;
+      const parsed: unknown = JSON.parse(saved);
+      if (Array.isArray(parsed) && parsed.every((order) =>
+        order && typeof order.id === "string" &&
+        typeof order.customer === "string" &&
+        typeof order.initials === "string" &&
+        typeof order.item === "string" &&
+        typeof order.date === "string" &&
+        typeof order.amount === "number" && Number.isFinite(order.amount) && order.amount >= 0 &&
+        ["Paid", "Processing", "Pending", "Refunded"].includes(order.status)
+      )) {
+        setOrders(parsed as Order[]);
+      }
+    } catch {
+      window.localStorage.removeItem("agentflow-demo-orders");
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem("agentflow-demo-orders", JSON.stringify(orders));
+    } catch {
+      // The dashboard remains usable if browser storage is disabled or full.
+    }
+  }, [orders]);
 
   const visibleOrders = useMemo(() => orders.filter((order) => {
     const matchesSearch = [order.id, order.customer, order.item].some((value) => value.toLowerCase().includes(orderQuery.toLowerCase()));
@@ -162,11 +191,11 @@ export default function Home() {
         </nav>
         <div className="nav-label nav-label-spaced">AUTOMATION</div>
         <button className={`nav-item ${activeNav === "AI assistant" ? "nav-active" : ""}`} onClick={() => { setActiveNav("AI assistant"); document.getElementById("assistant-input")?.focus(); }}><Bot size={18} /><span>AI assistant</span><span className="new-pill">NEW</span></button>
-        <button className={`nav-item ${activeNav === "Integrations" ? "nav-active" : ""}`} onClick={() => setActiveNav("Integrations")}><Zap size={18} /><span>Integrations</span></button>
+        <button className={`nav-item ${activeNav === "Integrations" ? "nav-active" : ""}`} onClick={() => { setActiveNav("Integrations"); setMobileMenu(false); }}><Zap size={18} /><span>Integrations</span></button>
         <div className="sidebar-bottom">
-          <div className="upgrade-card"><div className="upgrade-icon"><Sparkles size={16} /></div><strong>Make busywork history.</strong><p>Let your AI teammate handle the repetitive stuff.</p><button onClick={() => setResponse("Automation recipes are coming soon. This prototype currently runs in demo mode.")}>Explore automations <ArrowUpRight size={14} /></button></div>
-          <button className="nav-item" onClick={() => setActiveNav("Settings")}><Settings2 size={18} /><span>Settings</span></button>
-          <button className="nav-item" onClick={() => setResponse("Help center: this is an early prototype. No live store or payment account is connected yet.")}><LifeBuoy size={18} /><span>Help & support</span></button>
+          <div className="upgrade-card"><div className="upgrade-icon"><Sparkles size={16} /></div><strong>Make busywork history.</strong><p>Let your AI teammate handle the repetitive stuff.</p><button onClick={() => { setActiveNav("AI assistant"); setMobileMenu(false); setResponse("Automation recipes are coming soon. This prototype currently runs in demo mode."); }}>Explore automations <ArrowUpRight size={14} /></button></div>
+          <button className="nav-item" onClick={() => { setActiveNav("Settings"); setMobileMenu(false); }}><Settings2 size={18} /><span>Settings</span></button>
+          <button className="nav-item" onClick={() => { setActiveNav("AI assistant"); setMobileMenu(false); setResponse("Help center: this is an early prototype. No live store or payment account is connected yet."); }}><LifeBuoy size={18} /><span>Help & support</span></button>
           <div className="profile-row"><div className="profile-avatar">A</div><div className="profile-copy"><strong>Admin User</strong><span>admin@studio.demo</span></div><MoreHorizontal size={18} className="muted-icon" /></div>
         </div>
       </aside>
@@ -237,7 +266,7 @@ export default function Home() {
               <div className="section-heading"><div><h2>Settings</h2><p>Prototype configuration and demo-data controls.</p></div></div>
               <div className="bottom-row">
                 <article className="bottom-card"><div className="bottom-icon"><ShieldCheck size={18} /></div><div><strong>Workspace mode</strong><p>Demo mode only. No login, roles, or live-store data are configured.</p><span className="coming-soon">DEMO</span></div></article>
-                <article className="bottom-card"><div className="bottom-icon"><Package size={18} /></div><div><strong>Data storage</strong><p>Orders live in page memory and reset when you refresh.</p><span className="coming-soon">TEMPORARY</span></div></article>
+                <article className="bottom-card"><div className="bottom-icon"><Package size={18} /></div><div><strong>Data storage</strong><p>Demo orders are saved in this browser only; they are not shared across devices or stored in a database.</p><span className="coming-soon">TEMPORARY</span></div></article>
                 <article className="bottom-card"><div className="bottom-icon green"><ShieldCheck size={18} /></div><div><strong>Payment safety</strong><p>Live PayPal mode is intentionally blocked in this prototype.</p><span className="coming-soon">SANDBOX ONLY</span></div></article>
               </div>
               <div className="assistant-response"><div><Activity size={14} /> Demo workspace</div><p>Resetting restores the original sample orders. This does not affect PayPal or any external account.</p><button className="secondary-button" style={{ position: "static", marginTop: "10px" }} onClick={() => { setOrders(initialOrders); setOrderQuery(""); setFilter("All orders"); setResponse("Demo orders restored to the original sample set."); }}>Reset demo orders</button></div>
