@@ -48,6 +48,22 @@ export default function Home() {
   const money = (amount: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 2 }).format(amount);
   const totalOrderValue = orders.filter((order) => order.status !== "Refunded").reduce((sum, order) => sum + order.amount, 0);
   const activeCustomerCount = new Set(orders.map((order) => order.customer.trim().toLowerCase()).filter(Boolean)).size;
+  const customerRows = useMemo(() => {
+    const grouped = new Map<string, Order[]>();
+    for (const order of orders) {
+      const key = order.customer.trim().toLowerCase();
+      const records = grouped.get(key) ?? [];
+      records.push(order);
+      grouped.set(key, records);
+    }
+    return [...grouped.values()].map((records) => ({
+      customer: records[0].customer,
+      initials: records[0].initials,
+      count: records.length,
+      paidValue: records.filter((order) => order.status === "Paid").reduce((sum, order) => sum + order.amount, 0),
+      latestDate: records[0].date
+    })).filter((customer) => customer.customer.toLowerCase().includes(orderQuery.toLowerCase()));
+  }, [orders, orderQuery]);
 
   async function runAssistant(prompt: string) {
     if (assistantLoading) return;
@@ -171,7 +187,9 @@ export default function Home() {
 
           <div className="demo-notice"><div className="notice-icon"><ShieldCheck size={17} /></div><div><strong>You're exploring demo mode</strong><span>Sample data only. PayPal and live store connections aren't active yet.</span></div><span className="demo-tag">SANDBOX READY SOON</span></div>
 
-          <div className="section-heading"><div><h2>Business overview</h2><p>A quick look at your store's performance.</p></div><button className="period-button">Last 7 days <ChevronDown size={15} /></button></div>
+          {activeNav !== "Integrations" && activeNav !== "Settings" ? (
+          <>
+          <div className="section-heading"><div><h2>{activeNav === "Customers" ? "Customer overview" : activeNav === "Payments" ? "Payment overview" : activeNav === "Orders" ? "Order overview" : "Business overview"}</h2><p>{activeNav === "Customers" ? "Customers represented in the current demo orders." : activeNav === "Payments" ? "Payment states shown for demo orders only." : "A quick look at your demo workspace."}</p></div><span className="period-button">Demo data <ChevronDown size={15} /></span></div>
 
           <div className="metrics-grid">
             <article className="metric-card"><div className="metric-top"><span>Total order value</span><span className="metric-icon purple"><WalletCards size={17} /></span></div><div className="metric-value">{money(totalOrderValue)}</div><div className="metric-foot">Compared to previous 7 days</div><div className="sparkline spark-purple"><i /><i /><i /><i /><i /><i /><i /><i /><i /><i /><i /><i /></div></article>
@@ -183,12 +201,12 @@ export default function Home() {
           <div className="content-grid">
             <section className="orders-card">
               <div className="card-heading"><div><h2>{activeNav === "Payments" ? "Payment activity" : activeNav === "Customers" ? "Recent customers" : "Recent orders"}</h2><p>Keep an eye on what needs your attention.</p></div><button className="text-button" onClick={() => { setActiveNav("Orders"); setFilter("All orders"); }}>View all <ArrowUpRightFromSquare size={14} /></button></div>
-              <div className="table-toolbar"><div className="search-field"><Search size={16} /><input aria-label="Search orders" placeholder="Search orders..." value={orderQuery} onChange={(event) => setOrderQuery(event.target.value)} /><kbd>⌘ K</kbd></div><select aria-label="Filter by order status" value={filter} onChange={(event) => setFilter(event.target.value)}><option>All orders</option><option>Paid</option><option>Processing</option><option>Pending</option><option>Refunded</option></select><button className="filter-button" aria-label="Filter orders" onClick={() => setFilter(filter === "All orders" ? "Pending" : "All orders")}><Filter size={16} /></button></div>
-              <div className="orders-table-wrap"><table className="orders-table"><thead><tr><th>ORDER</th><th>CUSTOMER</th><th>ITEM</th><th>AMOUNT</th><th>STATUS</th><th /></tr></thead><tbody>
-                {visibleOrders.map((order) => <tr key={order.id}><td><span className="order-id">{order.id}</span><span className="order-date">{order.date}</span></td><td><div className="customer-cell"><span className="customer-avatar">{order.initials}</span><span>{order.customer}</span></div></td><td><span className="item-name">{order.item}</span></td><td><strong className="amount">{money(order.amount)}</strong></td><td><span className={`status-badge status-${order.status.toLowerCase()}`}><i />{order.status}</span></td><td><button className="row-more" aria-label={`More options for ${order.id}`} onClick={() => setResponse(`${order.id}: ${order.customer} · ${money(order.amount)} · ${order.status}. Demo record only.`)}><Ellipsis size={18} /></button></td></tr>)}
-                {visibleOrders.length === 0 && <tr><td colSpan={6} className="empty-state">No orders match your search.</td></tr>}
+              <div className="table-toolbar"><div className="search-field"><Search size={16} /><input aria-label={activeNav === "Customers" ? "Search customers" : "Search orders"} placeholder={activeNav === "Customers" ? "Search customers..." : "Search orders..."} value={orderQuery} onChange={(event) => setOrderQuery(event.target.value)} /><kbd>⌘ K</kbd></div>{activeNav !== "Customers" && <><select aria-label="Filter by order status" value={filter} onChange={(event) => setFilter(event.target.value)}><option>All orders</option><option>Paid</option><option>Processing</option><option>Pending</option><option>Refunded</option></select><button className="filter-button" aria-label="Toggle pending order filter" onClick={() => setFilter(filter === "All orders" ? "Pending" : "All orders")}><Filter size={16} /></button></>}</div>
+              <div className="orders-table-wrap"><table className="orders-table"><thead>{activeNav === "Customers" ? <tr><th>CUSTOMER</th><th>ORDERS</th><th>PAID VALUE</th><th>LATEST ORDER</th></tr> : <tr><th>ORDER</th><th>CUSTOMER</th><th>ITEM</th><th>AMOUNT</th><th>STATUS</th><th /></tr>}</thead><tbody>
+                {activeNav === "Customers" ? customerRows.map((customer) => <tr key={customer.customer.toLowerCase()}><td><div className="customer-cell"><span className="customer-avatar">{customer.initials}</span><span>{customer.customer}</span></div></td><td>{customer.count}</td><td><strong className="amount">{money(customer.paidValue)}</strong></td><td>{customer.latestDate}</td></tr>) : visibleOrders.map((order) => <tr key={order.id}><td><span className="order-id">{order.id}</span><span className="order-date">{order.date}</span></td><td><div className="customer-cell"><span className="customer-avatar">{order.initials}</span><span>{order.customer}</span></div></td><td><span className="item-name">{order.item}</span></td><td><strong className="amount">{money(order.amount)}</strong></td><td><span className={`status-badge status-${order.status.toLowerCase()}`}><i />{order.status}</span></td><td><button className="row-more" aria-label={`More options for ${order.id}`} onClick={() => setResponse(`${order.id}: ${order.customer} · ${money(order.amount)} · ${order.status}. Demo record only.`)}><Ellipsis size={18} /></button></td></tr>)}
+                {((activeNav === "Customers" && customerRows.length === 0) || (activeNav !== "Customers" && visibleOrders.length === 0)) && <tr><td colSpan={activeNav === "Customers" ? 4 : 6} className="empty-state">No {activeNav === "Customers" ? "customers" : "orders"} match your search.</td></tr>}
               </tbody></table></div>
-              <div className="table-footer"><span>Showing <strong>{visibleOrders.length}</strong> of <strong>{orders.length}</strong> demo orders</span><div><button disabled>Previous</button><button disabled>Next</button></div></div>
+              <div className="table-footer"><span>Showing <strong>{activeNav === "Customers" ? customerRows.length : visibleOrders.length}</strong> of <strong>{activeNav === "Customers" ? customerRows.length : orders.length}</strong> demo {activeNav === "Customers" ? "customers" : "orders"}</span><div><button disabled>Previous</button><button disabled>Next</button></div></div>
             </section>
 
             <aside className="assistant-card">
@@ -202,7 +220,29 @@ export default function Home() {
             </aside>
           </div>
 
-          <div className="bottom-row"><div className="bottom-card"><div className="bottom-icon"><Store size={18} /></div><div><strong>Connect your store</strong><p>Bring your orders into one workspace.</p></div><button onClick={() => { setActiveNav("Integrations"); setResponse("Store integrations are not connected yet. This will be configured after the core app is ready."); }}>Set up <ArrowUpRight size={14} /></button></div><div className="bottom-card"><div className="bottom-icon paypal-icon"><WalletCards size={18} /></div><div><strong>PayPal payments</strong><p>Test checkout securely in sandbox mode.</p></div><span className="coming-soon">COMING SOON</span></div><div className="bottom-card"><div className="bottom-icon green"><TrendingUp size={18} /></div><div><strong>Smart workflows</strong><p>Automate repetitive tasks with AI.</p></div><span className="coming-soon">COMING SOON</span></div></div>
+          <div className="bottom-row"><div className="bottom-card"><div className="bottom-icon"><Store size={18} /></div><div><strong>Connect your store</strong><p>Bring your orders into one workspace.</p></div><button onClick={() => { setActiveNav("Integrations"); setResponse(""); }}>Set up <ArrowUpRight size={14} /></button></div><div className="bottom-card"><div className="bottom-icon paypal-icon"><WalletCards size={18} /></div><div><strong>PayPal payments</strong><p>Sandbox API routes are available but not connected to checkout.</p></div><span className="coming-soon">NOT CONNECTED</span></div><div className="bottom-card"><div className="bottom-icon green"><TrendingUp size={18} /></div><div><strong>Smart workflows</strong><p>Automations are not active in this demo.</p></div><span className="coming-soon">PLANNED</span></div></div>
+          </>
+          ) : activeNav === "Integrations" ? (
+            <section className="workspace-panel">
+              <div className="section-heading"><div><h2>Integrations</h2><p>Connect external services when you're ready to configure credentials.</p></div></div>
+              <div className="bottom-row">
+                <article className="bottom-card"><div className="bottom-icon paypal-icon"><WalletCards size={18} /></div><div><strong>PayPal Sandbox</strong><p>Server routes exist; credentials and checkout UI are not connected.</p><span className="coming-soon">NOT CONFIGURED</span></div></article>
+                <article className="bottom-card"><div className="bottom-icon"><Store size={18} /></div><div><strong>Store platform</strong><p>No Shopify, WooCommerce, or live store connection is configured.</p><span className="coming-soon">NOT CONNECTED</span></div></article>
+                <article className="bottom-card"><div className="bottom-icon green"><Bot size={18} /></div><div><strong>AI provider</strong><p>The assistant currently uses deterministic rules, not a live LLM.</p><span className="coming-soon">RULE-BASED</span></div></article>
+              </div>
+              <div className="assistant-response"><div><ShieldCheck size={14} /> Safe setup</div><p>When configuring PayPal, add PAYPAL_CLIENT_ID and PAYPAL_CLIENT_SECRET in Vercel Project Settings → Environment Variables. Never paste secrets into GitHub or this chat. Keep the environment set to Sandbox for testing.</p></div>
+            </section>
+          ) : (
+            <section className="workspace-panel">
+              <div className="section-heading"><div><h2>Settings</h2><p>Prototype configuration and demo-data controls.</p></div></div>
+              <div className="bottom-row">
+                <article className="bottom-card"><div className="bottom-icon"><ShieldCheck size={18} /></div><div><strong>Workspace mode</strong><p>Demo mode only. No login, roles, or live-store data are configured.</p><span className="coming-soon">DEMO</span></div></article>
+                <article className="bottom-card"><div className="bottom-icon"><Package size={18} /></div><div><strong>Data storage</strong><p>Orders live in page memory and reset when you refresh.</p><span className="coming-soon">TEMPORARY</span></div></article>
+                <article className="bottom-card"><div className="bottom-icon green"><ShieldCheck size={18} /></div><div><strong>Payment safety</strong><p>Live PayPal mode is intentionally blocked in this prototype.</p><span className="coming-soon">SANDBOX ONLY</span></div></article>
+              </div>
+              <div className="assistant-response"><div><Activity size={14} /> Demo workspace</div><p>Resetting restores the original sample orders. This does not affect PayPal or any external account.</p><button onClick={() => { setOrders(initialOrders); setOrderQuery(""); setFilter("All orders"); setResponse("Demo orders restored to the original sample set."); }}>Reset demo orders</button></div>
+            </section>
+          )}
           <footer className="footer"><span>© 2026 AgentFlow AI</span><span><span className="footer-dot" /> Built for better business flow</span><button onClick={() => setResponse("AgentFlow AI is a hackathon prototype in active development.")}>Feedback</button></footer>
         </div>
       </section>
