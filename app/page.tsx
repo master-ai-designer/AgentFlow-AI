@@ -211,7 +211,7 @@ export default function Home() {
           <span className="brand-name">agentflow<span>.ai</span></span>
           <button className="icon-button sidebar-close" aria-label="Close menu" onClick={() => setMobileMenu(false)}><X size={18} /></button>
         </div>
-        <button className="workspace-switch">
+        <button className="workspace-switch" onClick={() => { setActiveNav("AI assistant"); setMobileMenu(false); setResponse("Only one demo workspace is available. Workspace switching is not configured in this prototype."); }}>
           <div className="workspace-avatar">S</div>
           <div className="workspace-copy"><strong>Studio workspace</strong><span>Free plan · Demo mode</span></div>
           <ChevronDown size={15} className="muted-icon" />
@@ -240,7 +240,7 @@ export default function Home() {
       <section className="main-panel">
         <header className="topbar">
           <div className="topbar-left"><button className="icon-button mobile-menu-button" aria-label="Open menu" onClick={() => setMobileMenu(true)}><Menu size={20} /></button><div className="breadcrumbs">Workspace <span>/</span> <strong>{activeNav}</strong></div></div>
-          <div className="topbar-actions"><div className="status-indicator"><span /> All systems demo</div><button className="icon-button help-button" aria-label="Help" onClick={() => setResponse("AgentFlow AI is in demo mode. Orders are stored only in this page's temporary state.")}><CircleHelp size={18} /></button><div className="top-avatar">A</div></div>
+          <div className="topbar-actions"><div className="status-indicator"><span /> All systems demo</div><button className="icon-button help-button" aria-label="Help" onClick={() => { setActiveNav("AI assistant"); setResponse("AgentFlow AI is in demo mode. Demo orders are saved in this browser only; they are not shared across devices or stored in a database."); }}><CircleHelp size={18} /></button><div className="top-avatar">A</div></div>
         </header>
 
         <div className="page-content">
@@ -284,7 +284,7 @@ export default function Home() {
             </aside>
           </div>
 
-          <div className="bottom-row"><div className="bottom-card"><div className="bottom-icon"><Store size={18} /></div><div><strong>Connect your store</strong><p>Bring your orders into one workspace.</p></div><button onClick={() => { setActiveNav("Integrations"); setResponse(""); }}>Set up <ArrowUpRight size={14} /></button></div><div className="bottom-card"><div className="bottom-icon paypal-icon"><WalletCards size={18} /></div><div><strong>PayPal payments</strong><p>Sandbox API routes are available but not connected to checkout.</p></div><span className="coming-soon">NOT CONNECTED</span></div><div className="bottom-card"><div className="bottom-icon green"><TrendingUp size={18} /></div><div><strong>Smart workflows</strong><p>Automations are not active in this demo.</p></div><span className="coming-soon">PLANNED</span></div></div>
+          <div className="bottom-row"><div className="bottom-card"><div className="bottom-icon"><Store size={18} /></div><div><strong>Connect your store</strong><p>Bring your orders into one workspace.</p></div><button onClick={() => { setActiveNav("Integrations"); setResponse(""); }}>Set up <ArrowUpRight size={14} /></button></div><div className="bottom-card"><div className="bottom-icon paypal-icon"><WalletCards size={18} /></div><div><strong>PayPal payments</strong><p>Run a $1 test checkout from Integrations.</p></div><span className="coming-soon">SANDBOX ONLY</span></div><div className="bottom-card"><div className="bottom-icon green"><TrendingUp size={18} /></div><div><strong>Smart workflows</strong><p>Automations are not active in this demo.</p></div><span className="coming-soon">PLANNED</span></div></div>
           </>
           ) : activeNav === "Integrations" ? (
             <section className="workspace-panel">
@@ -307,7 +307,7 @@ export default function Home() {
               <div className="assistant-response"><div><Activity size={14} /> Demo workspace</div><p>Resetting restores the original sample orders. This does not affect PayPal or any external account.</p><button className="secondary-button" style={{ position: "static", marginTop: "10px" }} onClick={() => { setOrders(initialOrders); setOrderQuery(""); setFilter("All orders"); setResponse("Demo orders restored to the original sample set."); }}>Reset demo orders</button></div>
             </section>
           )}
-          <footer className="footer"><span>© 2026 AgentFlow AI</span><span><span className="footer-dot" /> Built for better business flow</span><button onClick={() => setResponse("AgentFlow AI is a hackathon prototype in active development.")}>Feedback</button></footer>
+          <footer className="footer"><span>© 2026 AgentFlow AI</span><span><span className="footer-dot" /> Built for better business flow</span><button onClick={() => { setActiveNav("AI assistant"); setResponse("Thanks for testing AgentFlow AI. Feedback collection is not connected yet; this is a hackathon prototype in active development."); }}>Feedback</button></footer>
         </div>
       </section>
 
