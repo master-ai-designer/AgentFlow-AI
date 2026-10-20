@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 import { getPayPalAccessToken, paypalApiUrl, paypalConfigured } from "@/lib/paypal";
 
@@ -27,16 +28,32 @@ export async function POST(request: Request) {
 
   try {
     const token = await getPayPalAccessToken();
+    const origin = new URL(request.url).origin;
     const response = await fetch(paypalApiUrl("/v2/checkout/orders"), {
       method: "POST",
       headers: {
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
-        Prefer: "return=representation"
+        Prefer: "return=representation",
+        "PayPal-Request-Id": randomUUID()
       },
       body: JSON.stringify({
         intent: "CAPTURE",
-        purchase_units: [{ amount: { currency_code: currency, value: amount.toFixed(2) } }]
+        purchase_units: [{
+          reference_id: "agentflow-sandbox-demo",
+          description: "AgentFlow AI Sandbox test checkout",
+          amount: { currency_code: currency, value: amount.toFixed(2) }
+        }],
+        payment_source: {
+          paypal: {
+            experience_context: {
+              brand_name: "AgentFlow AI",
+              user_action: "PAY_NOW",
+              return_url: `${origin}/payments/return`,
+              cancel_url: `${origin}/payments/cancel`
+            }
+          }
+        }
       }),
       cache: "no-store"
     });
