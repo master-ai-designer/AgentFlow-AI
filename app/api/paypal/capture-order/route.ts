@@ -1,11 +1,15 @@
 import { NextResponse } from "next/server";
-import { getPayPalAccessToken, paypalApiUrl, paypalConfigured } from "@/lib/paypal";
+import { getPayPalAccessToken, isSameOriginRequest, paypalApiUrl, paypalConfigured } from "@/lib/paypal";
 
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
   if (!paypalConfigured()) {
     return NextResponse.json({ error: "PayPal is not configured. Add server-side credentials first." }, { status: 503 });
+  }
+
+  if (!isSameOriginRequest(request)) {
+    return NextResponse.json({ error: "This payment action must be initiated from the AgentFlow site." }, { status: 403 });
   }
 
   let body: { orderId?: unknown };
