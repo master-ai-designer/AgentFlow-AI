@@ -21,7 +21,7 @@ const initialOrders: Order[] = [
 ];
 
 const suggestions = [
-  { title: "Summarize today's orders", detail: "Get a quick business snapshot", icon: Activity },
+  { title: "Summarize all orders", detail: "Get a quick business snapshot", icon: Activity },
   { title: "Find pending payments", detail: "Spot orders that need attention", icon: WalletCards },
   { title: "Draft a customer follow-up", detail: "Write a helpful message", icon: MessageSquareText }
 ];
@@ -32,6 +32,7 @@ export default function Home() {
   const [orderQuery, setOrderQuery] = useState("");
   const [assistantQuery, setAssistantQuery] = useState("");
   const [assistantLoading, setAssistantLoading] = useState(false);
+  const [assistantMode, setAssistantMode] = useState<"gemini" | "rules" | "rules-fallback" | "local-fallback" | null>(null);
   const [activeNav, setActiveNav] = useState("Overview");
   const [filter, setFilter] = useState("All orders");
   const [response, setResponse] = useState("");
@@ -41,6 +42,7 @@ export default function Home() {
   const [newAmount, setNewAmount] = useState("99");
   const [paypalLoading, setPaypalLoading] = useState(false);
   const [paypalMessage, setPaypalMessage] = useState("");
+  const [aiProviderStatus, setAiProviderStatus] = useState<{ configured: boolean; model: string | null } | null>(null);
 
   useEffect(() => {
     try {
@@ -75,6 +77,25 @@ export default function Home() {
     }
   }, [orders, ordersLoaded]);
 
+  useEffect(() => {
+    let active = true;
+    fetch("/api/assistant/status", { cache: "no-store" })
+      .then(async (result) => {
+        if (!result.ok) throw new Error("Assistant status unavailable");
+        const data = await result.json();
+        if (active && typeof data.configured === "boolean") {
+          setAiProviderStatus({
+            configured: data.configured,
+            model: typeof data.model === "string" ? data.model : null
+          });
+        }
+      })
+      .catch(() => {
+        if (active) setAiProviderStatus(null);
+      });
+    return () => { active = false; };
+  }, []);
+
   const visibleOrders = useMemo(() => orders.filter((order) => {
     const matchesSearch = [order.id, order.customer, order.item].some((value) => value.toLowerCase().includes(orderQuery.toLowerCase()));
     const matchesFilter = filter === "All orders" || order.status === filter;
@@ -104,16 +125,20 @@ export default function Home() {
   async function runAssistant(prompt: string) {
     if (assistantLoading) return;
     setAssistantLoading(true);
+    setAssistantMode(null);
     setResponse("");
     const localAnswer = (message: string) => {
       const lower = message.toLowerCase();
+      if (lower.includes("today") || lower.includes("yesterday") || lower.includes("this week") || lower.includes("last week")) {
+        return "I cannot reliably filter by date in this demo workspace. The orders are sample records, not a live store feed. Ask me to summarize all orders instead.";
+      }
       if (lower.includes("pending") || lower.includes("payment")) {
         const pending = orders.filter((order) => order.status === "Pending");
         return pending.length
           ? `I found ${pending.length} order awaiting payment: ${pending.map((o) => `${o.id} for ${money(o.amount)} (${o.customer})`).join(", ")}. This is demo data; no payment provider has been contacted.`
           : "There are no orders marked pending in this demo workspace.";
       }
-      if (lower.includes("summar") || lower.includes("today") || lower.includes("sales")) {
+      if (lower.includes("summar") || lower.includes("sales")) {
         const paid = orders.filter((order) => order.status === "Paid");
         return `Demo snapshot: ${orders.length} orders, ${paid.length} marked paid, and ${money(paid.reduce((sum, order) => sum + order.amount, 0))} in paid order value. These are sample figures, not live store analytics.`;
       }
@@ -132,17 +157,20 @@ export default function Home() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           message: prompt,
-          orders: orders.map((order) => ({ id: order.id, customer: order.customer, amount: order.amount, status: order.status }))
+          orders: orders.map((order) => ({ id: order.id, customer: order.customer, amount: order.amount, status: order.status, date: order.date }))
         })
       });
       const data = await result.json();
-      if (!result.ok || typeof data.answer !== "string") throw new Error("Assistant API unavailable");
+      if (!result.ok || typeof data.answer !== "string") throw new Error(typeof data.error === "string" ? data.error : "Assistant API unavailable");
       setResponse(data.answer);
+      setAssistantMode(data.mode === "gemini" || data.mode === "rules-fallback" || data.mode === "rules" ? data.mode : "rules");
     } catch {
-      setResponse(localAnswer(prompt) + " (Local demo fallback.)");
+      setResponse(localAnswer(prompt) + " (Local demo fallback; the assistant API could not be reached.)");
+      setAssistantMode("local-fallback");
+    } finally {
+      setAssistantLoading(false);
+      setAssistantQuery("");
     }
-    setAssistantLoading(false);
-    setAssistantQuery("");
   }
 
   async function startPayPalSandboxCheckout() {
@@ -181,7 +209,7 @@ export default function Home() {
     }
     const initials = newCustomer.trim().split(/\s+/).slice(0, 2).map((part) => part[0]?.toUpperCase()).join("");
     const order: Order = {
-      id: `AF-${2049 + orders.length - initialOrders.length}`,
+      id: `AF-${crypto.randomUUID().slice(0, 8).toUpperCase()}`,
       customer: newCustomer.trim(),
       initials: initials || "CU",
       item: "New custom order",
@@ -240,7 +268,7 @@ export default function Home() {
       <section className="main-panel">
         <header className="topbar">
           <div className="topbar-left"><button className="icon-button mobile-menu-button" aria-label="Open menu" onClick={() => setMobileMenu(true)}><Menu size={20} /></button><div className="breadcrumbs">Workspace <span>/</span> <strong>{activeNav}</strong></div></div>
-          <div className="topbar-actions"><div className="status-indicator"><span /> All systems demo</div><button className="icon-button help-button" aria-label="Help" onClick={() => { setActiveNav("AI assistant"); setResponse("AgentFlow AI is in demo mode. Demo orders are saved in this browser only; they are not shared across devices or stored in a database."); }}><CircleHelp size={18} /></button><div className="top-avatar">A</div></div>
+          <div className="topbar-actions"><div className="status-indicator"><span /> Demo workspace</div><button className="icon-button help-button" aria-label="Help" onClick={() => { setActiveNav("AI assistant"); setResponse("AgentFlow AI is in demo mode. Demo orders are saved in this browser only; they are not shared across devices or stored in a database."); }}><CircleHelp size={18} /></button><div className="top-avatar">A</div></div>
         </header>
 
         <div className="page-content">
@@ -256,10 +284,10 @@ export default function Home() {
           <div className="section-heading"><div><h2>{activeNav === "Customers" ? "Customer overview" : activeNav === "Payments" ? "Payment overview" : activeNav === "Orders" ? "Order overview" : "Business overview"}</h2><p>{activeNav === "Customers" ? "Customers represented in the current demo orders." : activeNav === "Payments" ? "Payment states shown for demo orders only." : "A quick look at your demo workspace."}</p></div><span className="period-button">Demo data <ChevronDown size={15} /></span></div>
 
           <div className="metrics-grid">
-            <article className="metric-card"><div className="metric-top"><span>Total order value</span><span className="metric-icon purple"><WalletCards size={17} /></span></div><div className="metric-value">{money(totalOrderValue)}</div><div className="metric-foot">Compared to previous 7 days</div><div className="sparkline spark-purple"><i /><i /><i /><i /><i /><i /><i /><i /><i /><i /><i /><i /></div></article>
-            <article className="metric-card"><div className="metric-top"><span>Orders</span><span className="metric-icon blue"><Package size={17} /></span></div><div className="metric-value">{orders.length}</div><div className="metric-foot">Across all order statuses</div><div className="sparkline spark-blue"><i /><i /><i /><i /><i /><i /><i /><i /><i /><i /><i /><i /></div></article>
-            <article className="metric-card"><div className="metric-top"><span>Pending payments</span><span className="metric-icon amber"><CreditCard size={17} /></span></div><div className="metric-value">{orders.filter((order) => order.status === "Pending").length}<span className="metric-subtle">needs attention</span></div><div className="metric-foot">Review before fulfilling orders</div><div className="metric-progress"><span style={{ width: "32%" }} /></div></article>
-            <article className="metric-card"><div className="metric-top"><span>Active customers</span><span className="metric-icon green"><Users size={17} /></span></div><div className="metric-value">{activeCustomerCount}</div><div className="metric-foot">Returning and new customers</div><div className="sparkline spark-green"><i /><i /><i /><i /><i /><i /><i /><i /><i /><i /><i /><i /></div></article>
+            <article className="metric-card"><div className="metric-top"><span>Total order value</span><span className="metric-icon purple"><WalletCards size={17} /></span></div><div className="metric-value">{money(totalOrderValue)}</div><div className="metric-foot">Excludes refunded demo orders</div></article>
+            <article className="metric-card"><div className="metric-top"><span>Orders</span><span className="metric-icon blue"><Package size={17} /></span></div><div className="metric-value">{orders.length}</div><div className="metric-foot">Sample records in this browser</div></article>
+            <article className="metric-card"><div className="metric-top"><span>Pending payments</span><span className="metric-icon amber"><CreditCard size={17} /></span></div><div className="metric-value">{orders.filter((order) => order.status === "Pending").length}<span className="metric-subtle">needs attention</span></div><div className="metric-foot">Demo status only; verify with provider</div></article>
+            <article className="metric-card"><div className="metric-top"><span>Active customers</span><span className="metric-icon green"><Users size={17} /></span></div><div className="metric-value">{activeCustomerCount}</div><div className="metric-foot">Unique customers in demo orders</div></article>
           </div>
 
           <div className="content-grid">
@@ -278,7 +306,7 @@ export default function Home() {
               <div className="assistant-intro"><div className="assistant-orb"><Bot size={26} /></div><h3>What can I take off<br />your plate?</h3><p>Ask me about orders, payments, or customer follow-ups. Let's get things moving.</p></div>
               <div className="suggestion-list">{suggestions.map(({ title, detail, icon: Icon }) => <button className="suggestion-item" key={title} onClick={() => runAssistant(title)}><span className="suggestion-icon"><Icon size={16} /></span><span className="suggestion-copy"><strong>{title}</strong><small>{detail}</small></span><ArrowUpRight size={15} className="suggestion-arrow" /></button>)}</div>
               {assistantLoading && <div className="assistant-response"><div><Activity size={14} /> AgentFlow is thinking…</div><p>Checking the demo order data.</p></div>}
-              {response && <div className="assistant-response"><div><Sparkles size={14} /> AgentFlow response</div><p>{response}</p><button onClick={() => setResponse("")} aria-label="Dismiss response"><X size={14} /></button></div>}
+              {response && <div className="assistant-response"><div><Sparkles size={14} /> {assistantMode === "gemini" ? "Gemini AI response" : assistantMode === "rules-fallback" ? "AI unavailable · rules fallback" : assistantMode === "local-fallback" ? "Local demo fallback" : "Demo assistant response"}</div><p>{response}</p><button onClick={() => setResponse("")} aria-label="Dismiss response"><X size={14} /></button></div>}
               <form className="assistant-composer" onSubmit={(event) => { event.preventDefault(); if (assistantQuery.trim()) runAssistant(assistantQuery); }}><input id="assistant-input" value={assistantQuery} onChange={(event) => setAssistantQuery(event.target.value)} placeholder="Ask AgentFlow anything..." /><button type="submit" aria-label="Send message" disabled={!assistantQuery.trim() || assistantLoading}><Send size={16} /></button></form>
               <div className="assistant-disclaimer"><ShieldCheck size={13} /> Demo assistant · Review before taking action</div>
             </aside>
@@ -292,7 +320,7 @@ export default function Home() {
               <div className="bottom-row">
                 <article className="bottom-card"><div className="bottom-icon paypal-icon"><WalletCards size={18} /></div><div><strong>PayPal Sandbox</strong><p>Create a $1 test checkout and verify the approval/capture flow.</p><span className="coming-soon">SANDBOX ONLY</span><button className="secondary-button" style={{ position: "static", marginTop: "10px" }} disabled={paypalLoading} onClick={startPayPalSandboxCheckout}>{paypalLoading ? "Preparing checkout…" : "Test $1 Sandbox checkout"}</button>{paypalMessage && <small role="status" style={{ display: "block", marginTop: "8px", color: "#b54735" }}>{paypalMessage}</small>}</div></article>
                 <article className="bottom-card"><div className="bottom-icon"><Store size={18} /></div><div><strong>Store platform</strong><p>No Shopify, WooCommerce, or live store connection is configured.</p><span className="coming-soon">NOT CONNECTED</span></div></article>
-                <article className="bottom-card"><div className="bottom-icon green"><Bot size={18} /></div><div><strong>AI provider</strong><p>Gemini is optional; without a server-side GEMINI_API_KEY, the assistant uses rules.</p><span className="coming-soon">RULE-BASED</span></div></article>
+                <article className="bottom-card"><div className="bottom-icon green"><Bot size={18} /></div><div><strong>AI provider</strong><p>{aiProviderStatus === null ? "Provider status could not be checked." : aiProviderStatus.configured ? `Gemini is configured (${aiProviderStatus.model}). The first prompt verifies whether the provider responds.` : "Gemini is not configured; the assistant uses the rule-based fallback."}</p><span className="coming-soon">{aiProviderStatus === null ? "STATUS UNKNOWN" : aiProviderStatus.configured ? "GEMINI CONFIGURED" : "RULE-BASED"}</span></div></article>
               </div>
               <div className="assistant-response"><div><ShieldCheck size={14} /> Safe setup</div><p>In Vercel Project Settings → Environment Variables, add PAYPAL_CLIENT_ID and PAYPAL_CLIENT_SECRET for Sandbox payments, and optionally GEMINI_API_KEY to enable the LLM assistant. Never paste secrets into GitHub or this chat. Keep PayPal in Sandbox for testing.</p></div>
             </section>

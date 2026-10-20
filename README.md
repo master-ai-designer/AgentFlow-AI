@@ -47,6 +47,10 @@ If credentials are missing, the dashboard still runs in demo mode and the PayPal
 
 ## API endpoints
 
+### GET /api/assistant/status
+
+Returns whether the server is configured to use Gemini or the deterministic rules fallback. It only exposes the configured model name and never returns the API key. A configured key does not guarantee provider availability; the first assistant request verifies the live provider response.
+
 ### POST /api/assistant
 
 Example body:
@@ -60,7 +64,7 @@ Example body:
 }
 ```
 
-Uses Gemini when GEMINI_API_KEY is configured; otherwise returns a rule-based response. It does not send messages or perform external actions.
+Uses Gemini when GEMINI_API_KEY is configured; otherwise returns a rule-based response. Requests are limited to 1,500 message characters, 64 KB total body size, and at most 200 validated demo orders. It does not send messages or perform external actions.
 
 ### POST /api/paypal/create-order
 

@@ -33,6 +33,14 @@ try {
   }
   console.log("PASS: PayPal return and cancellation pages render");
 
+  const assistantStatusResponse = await fetch(baseUrl + "/api/assistant/status");
+  assert.equal(assistantStatusResponse.status, 200, "assistant status endpoint should return HTTP 200");
+  const assistantStatus = await assistantStatusResponse.json();
+  assert.equal(assistantStatus.configured, false, "smoke test should not require an external Gemini key");
+  assert.equal(assistantStatus.provider, "rules", "unconfigured assistant should report rules mode");
+  assert.equal("apiKey" in assistantStatus, false, "assistant status must never expose API keys");
+  console.log("PASS: assistant status is available without exposing secrets");
+
   const assistantResponse = await fetch(`${baseUrl}/api/assistant`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -53,6 +61,13 @@ try {
   });
   assert.equal(invalidResponse.status, 400, "blank assistant message should be rejected");
   console.log("PASS: assistant API rejects blank messages");
+
+  const oversizedMessageResponse = await fetch(baseUrl + "/api/assistant", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ message: "x".repeat(1501) })
+  });
+  assert.equal(oversizedMessageResponse.status, 400, "oversized assistant messages should be rejected");
+  console.log("PASS: assistant API rejects oversized messages");
 
   const invalidOrderResponse = await fetch(`${baseUrl}/api/assistant`, {
     method: "POST", headers: { "Content-Type": "application/json" },

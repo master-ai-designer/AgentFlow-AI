@@ -5,6 +5,7 @@ type AssistantRequest = { message?: unknown; orders?: unknown };
 type GeminiResponse = { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
 
 const MAX_MESSAGE_LENGTH = 1500;
+const MAX_BODY_BYTES = 64 * 1024;
 const MAX_ORDERS = 200;
 const RATE_WINDOW_MS = 60_000;
 const RATE_LIMIT = 15;
@@ -33,7 +34,7 @@ function isOrder(value: unknown): value is OrderInput {
   return typeof order.id === "string" && order.id.length <= 100 &&
     typeof order.customer === "string" && order.customer.length <= 150 &&
     typeof order.amount === "number" && Number.isFinite(order.amount) && order.amount >= 0 && order.amount <= 1_000_000 &&
-    typeof order.status === "string" && order.status.length <= 40 &&
+    typeof order.status === "string" && ["Paid", "Processing", "Pending", "Refunded"].includes(order.status) &&
     (order.date === undefined || (typeof order.date === "string" && order.date.length <= 40));
 }
 
@@ -69,6 +70,9 @@ function ruleBasedAnswer(message: string, orders: OrderInput[]): string {
   const pending = orders.filter((order) => order.status.toLowerCase() === "pending");
   const paidValue = paid.reduce((sum, order) => sum + order.amount, 0);
 
+  if (/\b(today|yesterday|this week|last week)\b/.test(text)) {
+    return "I cannot reliably filter by date because this workspace contains sample records rather than a live store feed. I can summarize all supplied demo orders, but I cannot confirm today’s real orders.";
+  }
   if (/\b(refund|chargeback|dispute)\b/.test(text)) {
     return "Refund safety checklist: verify the captured PayPal payment and currency, confirm the customer and reason, check your refund policy, and obtain the required approval. This prototype does not issue refunds or contact customers.";
   }
@@ -78,7 +82,7 @@ function ruleBasedAnswer(message: string, orders: OrderInput[]): string {
       ? `I found ${pending.length} demo order(s) marked pending: ${pending.slice(0, 10).map((order) => `${order.id} — ${order.customer}, ${money(order.amount)}`).join("; ")}${pending.length > 10 ? "; and more" : ""}. A pending label is not proof of provider status; verify in PayPal before fulfilling.`
       : "No supplied demo orders are marked Pending. This only reflects the records sent by the dashboard; it does not query PayPal.";
   }
-  if (/\b(summar\w*|snapshot|sales|revenue|total orders|how many orders|today)\b/.test(text)) {
+  if (/\b(summar\w*|snapshot|sales|revenue|total orders|total order value|how many orders)\b/.test(text)) {
     return orders.length
       ? `Demo order snapshot: ${orders.length} order(s), ${paid.length} marked Paid, ${pending.length} marked Pending, and ${money(paidValue)} in order value for records marked Paid. The dashboard data is sample/in-memory data, not live analytics; no date-range comparison is available.`
       : "No order records were supplied, so I cannot calculate a summary. Connect or provide order data first.";
@@ -96,9 +100,18 @@ export async function POST(request: Request) {
   if (isRateLimited(request)) {
     return NextResponse.json({ error: "Too many assistant requests. Please wait a minute and try again." }, { status: 429 });
   }
+  const declaredLength = Number(request.headers.get("content-length") || 0);
+  if (declaredLength > MAX_BODY_BYTES) {
+    return NextResponse.json({ error: "Request is too large. Keep the request under 64 KB." }, { status: 413 });
+  }
+
   let body: AssistantRequest;
   try {
-    body = (await request.json()) as AssistantRequest;
+    const rawBody = await request.text();
+    if (new TextEncoder().encode(rawBody).byteLength > MAX_BODY_BYTES) {
+      return NextResponse.json({ error: "Request is too large. Keep the request under 64 KB." }, { status: 413 });
+    }
+    body = JSON.parse(rawBody) as AssistantRequest;
   } catch {
     return NextResponse.json({ error: "Please send a valid JSON request." }, { status: 400 });
   }
@@ -106,8 +119,11 @@ export async function POST(request: Request) {
   if (typeof body.message !== "string") {
     return NextResponse.json({ error: "Message must be a string." }, { status: 400 });
   }
-  const message = body.message.trim().slice(0, MAX_MESSAGE_LENGTH);
+  const message = body.message.trim();
   if (!message) return NextResponse.json({ error: "Message is required." }, { status: 400 });
+  if (message.length > MAX_MESSAGE_LENGTH) {
+    return NextResponse.json({ error: "Message must be " + MAX_MESSAGE_LENGTH + " characters or fewer." }, { status: 400 });
+  }
 
   let orders: OrderInput[] = [];
   if (body.orders !== undefined) {
