@@ -28,6 +28,7 @@ const suggestions = [
 
 export default function Home() {
   const [orders, setOrders] = useState(initialOrders);
+  const [ordersLoaded, setOrdersLoaded] = useState(false);
   const [orderQuery, setOrderQuery] = useState("");
   const [assistantQuery, setAssistantQuery] = useState("");
   const [assistantLoading, setAssistantLoading] = useState(false);
@@ -44,31 +45,37 @@ export default function Home() {
   useEffect(() => {
     try {
       const saved = window.localStorage.getItem("agentflow-demo-orders");
-      if (!saved) return;
-      const parsed: unknown = JSON.parse(saved);
-      if (Array.isArray(parsed) && parsed.every((order) =>
-        order && typeof order.id === "string" &&
-        typeof order.customer === "string" &&
-        typeof order.initials === "string" &&
-        typeof order.item === "string" &&
-        typeof order.date === "string" &&
-        typeof order.amount === "number" && Number.isFinite(order.amount) && order.amount >= 0 &&
-        ["Paid", "Processing", "Pending", "Refunded"].includes(order.status)
-      )) {
-        setOrders(parsed as Order[]);
+      if (saved) {
+        const parsed: unknown = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.every((order) =>
+          order && typeof order.id === "string" && order.id.length <= 100 &&
+          typeof order.customer === "string" && order.customer.length <= 150 &&
+          typeof order.initials === "string" && order.initials.length <= 4 &&
+          typeof order.item === "string" && order.item.length <= 150 &&
+          typeof order.date === "string" && order.date.length <= 40 &&
+          typeof order.amount === "number" && Number.isFinite(order.amount) && order.amount >= 0 && order.amount <= 1_000_000 &&
+          ["Paid", "Processing", "Pending", "Refunded"].includes(order.status)
+        )) {
+          setOrders(parsed as Order[]);
+        } else {
+          window.localStorage.removeItem("agentflow-demo-orders");
+        }
       }
     } catch {
       window.localStorage.removeItem("agentflow-demo-orders");
+    } finally {
+      setOrdersLoaded(true);
     }
   }, []);
 
   useEffect(() => {
+    if (!ordersLoaded) return;
     try {
       window.localStorage.setItem("agentflow-demo-orders", JSON.stringify(orders));
     } catch {
       // The dashboard remains usable if browser storage is disabled or full.
     }
-  }, [orders]);
+  }, [orders, ordersLoaded]);
 
   const visibleOrders = useMemo(() => orders.filter((order) => {
     const matchesSearch = [order.id, order.customer, order.item].some((value) => value.toLowerCase().includes(orderQuery.toLowerCase()));
