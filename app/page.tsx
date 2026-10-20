@@ -13,7 +13,7 @@ type OrderStatus = "Paid" | "Processing" | "Pending" | "Refunded";
 type Order = { id: string; customer: string; initials: string; item: string; date: string; amount: number; status: OrderStatus };
 
 const initialOrders: Order[] = [
-  { id: "AF-2048", customer: "Olivia Rhye", initials: "OR", item: "Studio headphones", date: new Intl.DateTimeFormat("en-US", { month: "short", day: "2-digit", year: "numeric" }).format(new Date()), amount: 249, status: "Paid" },
+  { id: "AF-2048", customer: "Olivia Rhye", initials: "OR", item: "Studio headphones", date: "Oct 20, 2026", amount: 249, status: "Paid" },
   { id: "AF-2047", customer: "Phoenix Baker", initials: "PB", item: "Desk lamp · Matte black", date: "Oct 20, 2026", amount: 89, status: "Processing" },
   { id: "AF-2046", customer: "Lana Steiner", initials: "LS", item: "Everyday carry set", date: "Oct 19, 2026", amount: 136, status: "Pending" },
   { id: "AF-2045", customer: "Demi Wilkinson", initials: "DW", item: "Wireless keyboard", date: "Oct 19, 2026", amount: 179, status: "Paid" },
