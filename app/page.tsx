@@ -45,27 +45,43 @@ export default function Home() {
 
   const money = (amount: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(amount);
 
-  function runAssistant(prompt: string) {
-    const lower = prompt.toLowerCase();
-    let answer = "";
-    if (lower.includes("pending") || lower.includes("payment")) {
-      const pending = orders.filter((order) => order.status === "Pending");
-      answer = pending.length
-        ? `I found ${pending.length} order awaiting payment: ${pending.map((o) => `${o.id} for ${money(o.amount)} (${o.customer})`).join(", ")}. This is demo data; no payment provider has been contacted.`
-        : "Great news — there are no orders marked as pending in this demo workspace.";
-    } else if (lower.includes("summar") || lower.includes("today") || lower.includes("sales")) {
-      const paid = orders.filter((order) => order.status === "Paid");
-      const total = paid.reduce((sum, order) => sum + order.amount, 0);
-      answer = `Here's your demo snapshot: ${orders.length} orders in view, ${paid.length} marked paid, and ${money(total)} in paid order value. These are sample figures, not live store analytics.`;
-    } else if (lower.includes("follow") || lower.includes("email") || lower.includes("customer")) {
-      answer = "Here's a draft you can review: “Hi there! Just checking in about your recent order. If you have any questions or need help, reply to this message and we'll be happy to help.” Nothing has been sent.";
-    } else if (lower.includes("refund")) {
-      const refunded = orders.filter((order) => order.status === "Refunded");
-      answer = `There ${refunded.length === 1 ? "is" : "are"} ${refunded.length} demo order${refunded.length === 1 ? "" : "s"} marked refunded. I can help prepare a review checklist, but no actual refund will be issued from this prototype.`;
-    } else {
-      answer = `I can help organize orders, spot pending payments, summarize your demo metrics, or draft customer replies. For now, I'm using sample data and haven't connected to a live store or PayPal account.`;
+  async function runAssistant(prompt: string) {
+    const localAnswer = (message: string) => {
+      const lower = message.toLowerCase();
+      if (lower.includes("pending") || lower.includes("payment")) {
+        const pending = orders.filter((order) => order.status === "Pending");
+        return pending.length
+          ? `I found ${pending.length} order awaiting payment: ${pending.map((o) => `${o.id} for ${money(o.amount)} (${o.customer})`).join(", ")}. This is demo data; no payment provider has been contacted.`
+          : "There are no orders marked pending in this demo workspace.";
+      }
+      if (lower.includes("summar") || lower.includes("today") || lower.includes("sales")) {
+        const paid = orders.filter((order) => order.status === "Paid");
+        return `Demo snapshot: ${orders.length} orders, ${paid.length} marked paid, and ${money(paid.reduce((sum, order) => sum + order.amount, 0))} in paid order value. These are sample figures, not live store analytics.`;
+      }
+      if (lower.includes("follow") || lower.includes("email") || lower.includes("customer")) {
+        return "Draft only: “Hi there! Just checking in about your recent order. If you have any questions or need help, reply to this message and we'll be happy to help.” Nothing has been sent.";
+      }
+      if (lower.includes("refund")) {
+        return "Before issuing a refund, verify the captured payment with PayPal and confirm the amount and approval. This prototype does not issue refunds.";
+      }
+      return "I can summarize orders, find pending payments, and draft customer follow-ups. This workspace is in demo mode; no external action is taken.";
+    };
+
+    try {
+      const result = await fetch("/api/assistant", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: prompt,
+          orders: orders.map((order) => ({ id: order.id, customer: order.customer, amount: order.amount, status: order.status }))
+        })
+      });
+      const data = await result.json();
+      if (!result.ok || typeof data.answer !== "string") throw new Error("Assistant API unavailable");
+      setResponse(data.answer);
+    } catch {
+      setResponse(localAnswer(prompt) + " (Local demo fallback.)");
     }
-    setResponse(answer);
     setQuery("");
   }
 
