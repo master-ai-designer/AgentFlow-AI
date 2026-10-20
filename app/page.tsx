@@ -129,14 +129,14 @@ export default function Home() {
     setResponse("");
     const localAnswer = (message: string) => {
       const lower = message.toLowerCase();
+      if (lower.includes("today") || lower.includes("yesterday") || lower.includes("this week") || lower.includes("last week")) {
+        return "I cannot reliably filter by date in this demo workspace. The orders are sample records, not a live store feed. Ask me to summarize all orders instead.";
+      }
       if (lower.includes("pending") || lower.includes("payment")) {
         const pending = orders.filter((order) => order.status === "Pending");
         return pending.length
           ? `I found ${pending.length} order awaiting payment: ${pending.map((o) => `${o.id} for ${money(o.amount)} (${o.customer})`).join(", ")}. This is demo data; no payment provider has been contacted.`
           : "There are no orders marked pending in this demo workspace.";
-      }
-      if (lower.includes("today") || lower.includes("yesterday") || lower.includes("this week") || lower.includes("last week")) {
-        return "I cannot reliably filter by date in this demo workspace. The orders are sample records, not a live store feed. Ask me to summarize all orders instead.";
       }
       if (lower.includes("summar") || lower.includes("sales")) {
         const paid = orders.filter((order) => order.status === "Paid");
