@@ -57,12 +57,10 @@ export default function Home() {
           ["Paid", "Processing", "Pending", "Refunded"].includes(order.status)
         )) {
           setOrders(parsed as Order[]);
-        } else {
-          window.localStorage.removeItem("agentflow-demo-orders");
         }
       }
     } catch {
-      window.localStorage.removeItem("agentflow-demo-orders");
+      // Ignore unavailable storage or malformed saved demo data and keep the sample set.
     } finally {
       setOrdersLoaded(true);
     }
