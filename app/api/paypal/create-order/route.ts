@@ -28,7 +28,15 @@ export async function POST(request: Request) {
 
   try {
     const token = await getPayPalAccessToken();
-    const origin = new URL(request.url).origin;
+    const vercelHost = process.env.VERCEL_ENV === "production"
+      ? (process.env.VERCEL_PROJECT_PRODUCTION_URL || process.env.VERCEL_URL)
+      : process.env.VERCEL_URL;
+    const configuredOrigin = process.env.NEXT_PUBLIC_APP_URL;
+    const origin = vercelHost
+      ? `https://${vercelHost.replace(/^https?:\\/\\//, "").replace(/\\/$/, "")}`
+      : configuredOrigin
+        ? new URL(configuredOrigin).origin
+        : new URL(request.url).origin;
     const response = await fetch(paypalApiUrl("/v2/checkout/orders"), {
       method: "POST",
       headers: {
