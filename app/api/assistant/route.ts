@@ -78,7 +78,7 @@ function ruleBasedAnswer(message: string, orders: OrderInput[]): string {
       ? `I found ${pending.length} demo order(s) marked pending: ${pending.slice(0, 10).map((order) => `${order.id} — ${order.customer}, ${money(order.amount)}`).join("; ")}${pending.length > 10 ? "; and more" : ""}. A pending label is not proof of provider status; verify in PayPal before fulfilling.`
       : "No supplied demo orders are marked Pending. This only reflects the records sent by the dashboard; it does not query PayPal.";
   }
-  if (/\b(summar|snapshot|sales|revenue|total orders|how many orders|today)\b/.test(text)) {
+  if (/\b(summariz|summary|snapshot|sales|revenue|total orders|how many orders|today)\b/.test(text)) {
     return orders.length
       ? `Demo order snapshot: ${orders.length} order(s), ${paid.length} marked Paid, ${pending.length} marked Pending, and ${money(paidValue)} in order value for records marked Paid. The dashboard data is sample/in-memory data, not live analytics; no date-range comparison is available.`
       : "No order records were supplied, so I cannot calculate a summary. Connect or provide order data first.";
