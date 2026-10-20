@@ -135,7 +135,10 @@ export default function Home() {
           ? `I found ${pending.length} order awaiting payment: ${pending.map((o) => `${o.id} for ${money(o.amount)} (${o.customer})`).join(", ")}. This is demo data; no payment provider has been contacted.`
           : "There are no orders marked pending in this demo workspace.";
       }
-      if (lower.includes("summar") || lower.includes("today") || lower.includes("sales")) {
+      if (lower.includes("today") || lower.includes("yesterday") || lower.includes("this week") || lower.includes("last week")) {
+        return "I cannot reliably filter by date in this demo workspace. The orders are sample records, not a live store feed. Ask me to summarize all orders instead.";
+      }
+      if (lower.includes("summar") || lower.includes("sales")) {
         const paid = orders.filter((order) => order.status === "Paid");
         return `Demo snapshot: ${orders.length} orders, ${paid.length} marked paid, and ${money(paid.reduce((sum, order) => sum + order.amount, 0))} in paid order value. These are sample figures, not live store analytics.`;
       }
@@ -154,7 +157,7 @@ export default function Home() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           message: prompt,
-          orders: orders.map((order) => ({ id: order.id, customer: order.customer, amount: order.amount, status: order.status }))
+          orders: orders.map((order) => ({ id: order.id, customer: order.customer, amount: order.amount, status: order.status, date: order.date }))
         })
       });
       const data = await result.json();
@@ -281,10 +284,10 @@ export default function Home() {
           <div className="section-heading"><div><h2>{activeNav === "Customers" ? "Customer overview" : activeNav === "Payments" ? "Payment overview" : activeNav === "Orders" ? "Order overview" : "Business overview"}</h2><p>{activeNav === "Customers" ? "Customers represented in the current demo orders." : activeNav === "Payments" ? "Payment states shown for demo orders only." : "A quick look at your demo workspace."}</p></div><span className="period-button">Demo data <ChevronDown size={15} /></span></div>
 
           <div className="metrics-grid">
-            <article className="metric-card"><div className="metric-top"><span>Total order value</span><span className="metric-icon purple"><WalletCards size={17} /></span></div><div className="metric-value">{money(totalOrderValue)}</div><div className="metric-foot">Compared to previous 7 days</div><div className="sparkline spark-purple"><i /><i /><i /><i /><i /><i /><i /><i /><i /><i /><i /><i /></div></article>
-            <article className="metric-card"><div className="metric-top"><span>Orders</span><span className="metric-icon blue"><Package size={17} /></span></div><div className="metric-value">{orders.length}</div><div className="metric-foot">Across all order statuses</div><div className="sparkline spark-blue"><i /><i /><i /><i /><i /><i /><i /><i /><i /><i /><i /><i /></div></article>
-            <article className="metric-card"><div className="metric-top"><span>Pending payments</span><span className="metric-icon amber"><CreditCard size={17} /></span></div><div className="metric-value">{orders.filter((order) => order.status === "Pending").length}<span className="metric-subtle">needs attention</span></div><div className="metric-foot">Review before fulfilling orders</div><div className="metric-progress"><span style={{ width: "32%" }} /></div></article>
-            <article className="metric-card"><div className="metric-top"><span>Active customers</span><span className="metric-icon green"><Users size={17} /></span></div><div className="metric-value">{activeCustomerCount}</div><div className="metric-foot">Returning and new customers</div><div className="sparkline spark-green"><i /><i /><i /><i /><i /><i /><i /><i /><i /><i /><i /><i /></div></article>
+            <article className="metric-card"><div className="metric-top"><span>Total order value</span><span className="metric-icon purple"><WalletCards size={17} /></span></div><div className="metric-value">{money(totalOrderValue)}</div><div className="metric-foot">Excludes refunded demo orders</div></article>
+            <article className="metric-card"><div className="metric-top"><span>Orders</span><span className="metric-icon blue"><Package size={17} /></span></div><div className="metric-value">{orders.length}</div><div className="metric-foot">Sample records in this browser</div></article>
+            <article className="metric-card"><div className="metric-top"><span>Pending payments</span><span className="metric-icon amber"><CreditCard size={17} /></span></div><div className="metric-value">{orders.filter((order) => order.status === "Pending").length}<span className="metric-subtle">needs attention</span></div><div className="metric-foot">Demo status only; verify with provider</div></article>
+            <article className="metric-card"><div className="metric-top"><span>Active customers</span><span className="metric-icon green"><Users size={17} /></span></div><div className="metric-value">{activeCustomerCount}</div><div className="metric-foot">Unique customers in demo orders</div></article>
           </div>
 
           <div className="content-grid">
