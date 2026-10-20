@@ -27,7 +27,7 @@ AgentFlow AI is a standalone hackathon project. It is completely separate from T
 
 ## Run locally
 
-Requirements: Node.js 18.17 or later.
+Requirements: Node.js 20.9 or later.
 
 1. Copy .env.example to .env.local.
 2. Create a REST app in the PayPal Developer Dashboard's Sandbox environment.
