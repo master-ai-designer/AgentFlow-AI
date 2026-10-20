@@ -249,7 +249,7 @@ export default function Home() {
             <button className="primary-button" onClick={() => setShowNewOrder(true)}><Plus size={17} /> New order</button>
           </div>
 
-          <div className="demo-notice"><div className="notice-icon"><ShieldCheck size={17} /></div><div><strong>You're exploring demo mode</strong><span>Sample data only. PayPal and live store connections aren't active yet.</span></div><span className="demo-tag">SANDBOX READY SOON</span></div>
+          <div className="demo-notice"><div className="notice-icon"><ShieldCheck size={17} /></div><div><strong>You're exploring demo mode</strong><span>Sample data only. Configure PayPal Sandbox credentials to test checkout; no live store is connected.</span></div><span className="demo-tag">DEMO · SANDBOX</span></div>
 
           {activeNav !== "Integrations" && activeNav !== "Settings" ? (
           <>
