@@ -9,7 +9,7 @@ AgentFlow AI is a standalone hackathon project. It is completely separate from T
 - Responsive business dashboard with order overview and status filters
 - Create-order modal for temporary demo orders
 - Searchable sample order list
-- Assistant panel connected to a server-side rule-based API, with a local demo fallback
+- Assistant panel calls a server-side Gemini model when configured, with a deterministic rule-based fallback
 - API endpoint for summarizing supplied order data, finding pending payments, and drafting customer follow-ups
 - PayPal Sandbox server routes for creating and capturing checkout orders
 - Server-only credential handling; no PayPal secret is bundled into client-side code
@@ -60,7 +60,7 @@ Example body:
 }
 ```
 
-Returns a rule-based response. It does not send messages or perform external actions.
+Uses Gemini when GEMINI_API_KEY is configured; otherwise returns a rule-based response. It does not send messages or perform external actions.
 
 ### POST /api/paypal/create-order
 
@@ -84,8 +84,8 @@ Captures a Sandbox order. Only use IDs from your own Sandbox test flow. Authenti
 
 ## Next milestones
 
-1. Add tests and run a production build.
-2. Connect the PayPal approval flow to the UI and verify it end to end in Sandbox.
-3. Add database-backed orders and an audit trail.
-4. Add authenticated, permission-aware AI actions with explicit user confirmation.
-5. Deploy to Vercel and prepare the hackathon demo walkthrough.
+1. Add the Gemini and PayPal Sandbox credentials to Vercel environment variables, then verify the integrations end to end.
+2. Add automated browser-level interaction tests and verify mobile layouts.
+3. Add database-backed orders, authentication, order ownership checks, and an audit trail.
+4. Add durable rate limiting and monitoring before sharing with real customers.
+5. Prepare a clear hackathon demo walkthrough and record the test results.
