@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
-import { getPayPalAccessToken, paypalApiUrl, paypalConfigured } from "@/lib/paypal";
+import { getPayPalAccessToken, isSameOriginRequest, paypalApiUrl, paypalConfigured } from "@/lib/paypal";
 
 export const runtime = "nodejs";
 
@@ -10,6 +10,10 @@ export async function POST(request: Request) {
       error: "PayPal Sandbox is not configured yet.",
       setup: "Set PAYPAL_CLIENT_ID, PAYPAL_CLIENT_SECRET, and PAYPAL_ENVIRONMENT=sandbox in your server environment."
     }, { status: 503 });
+  }
+
+  if (!isSameOriginRequest(request)) {
+    return NextResponse.json({ error: "This payment action must be initiated from the AgentFlow site." }, { status: 403 });
   }
 
   let body: { amount?: unknown; currency?: unknown };
