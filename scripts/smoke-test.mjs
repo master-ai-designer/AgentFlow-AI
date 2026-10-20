@@ -21,7 +21,11 @@ async function waitForServer() {
 
 try {
   await waitForServer();
-  console.log("PASS: homepage returns HTTP 200");
+  const homepage = await fetch(baseUrl);
+  assert.equal(homepage.status, 200, "homepage should return HTTP 200");
+  assert.equal(homepage.headers.get("x-content-type-options"), "nosniff", "security headers should be present");
+  assert.equal(homepage.headers.get("x-frame-options"), "DENY", "framing should be blocked");
+  console.log("PASS: homepage returns HTTP 200 with baseline security headers");
 
   const assistantResponse = await fetch(`${baseUrl}/api/assistant`, {
     method: "POST",
