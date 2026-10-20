@@ -17,7 +17,7 @@ AgentFlow AI is a standalone hackathon project. It is completely separate from T
 
 ## Important status and safety notes
 
-- Orders in the dashboard are sample data held in page memory; refreshing resets demo-created orders.
+- Orders in the dashboard are sample data saved in the current browser's local storage; they are not stored in a database or shared between devices.
 - The assistant uses a server-side Gemini model when GEMINI_API_KEY is configured; without it, it falls back to deterministic rules.
 - The PayPal endpoints are not yet wired to a checkout button in the dashboard.
 - PayPal integration requires your own Sandbox REST app credentials.
