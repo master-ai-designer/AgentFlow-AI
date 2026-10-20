@@ -228,9 +228,9 @@ export default function Home() {
               <div className="bottom-row">
                 <article className="bottom-card"><div className="bottom-icon paypal-icon"><WalletCards size={18} /></div><div><strong>PayPal Sandbox</strong><p>Server routes exist; credentials and checkout UI are not connected.</p><span className="coming-soon">NOT CONFIGURED</span></div></article>
                 <article className="bottom-card"><div className="bottom-icon"><Store size={18} /></div><div><strong>Store platform</strong><p>No Shopify, WooCommerce, or live store connection is configured.</p><span className="coming-soon">NOT CONNECTED</span></div></article>
-                <article className="bottom-card"><div className="bottom-icon green"><Bot size={18} /></div><div><strong>AI provider</strong><p>The assistant currently uses deterministic rules, not a live LLM.</p><span className="coming-soon">RULE-BASED</span></div></article>
+                <article className="bottom-card"><div className="bottom-icon green"><Bot size={18} /></div><div><strong>AI provider</strong><p>Gemini is optional; without a server-side GEMINI_API_KEY, the assistant uses rules.</p><span className="coming-soon">RULE-BASED</span></div></article>
               </div>
-              <div className="assistant-response"><div><ShieldCheck size={14} /> Safe setup</div><p>When configuring PayPal, add PAYPAL_CLIENT_ID and PAYPAL_CLIENT_SECRET in Vercel Project Settings → Environment Variables. Never paste secrets into GitHub or this chat. Keep the environment set to Sandbox for testing.</p></div>
+              <div className="assistant-response"><div><ShieldCheck size={14} /> Safe setup</div><p>In Vercel Project Settings → Environment Variables, add PAYPAL_CLIENT_ID and PAYPAL_CLIENT_SECRET for Sandbox payments, and optionally GEMINI_API_KEY to enable the LLM assistant. Never paste secrets into GitHub or this chat. Keep PayPal in Sandbox for testing.</p></div>
             </section>
           ) : (
             <section className="workspace-panel">
