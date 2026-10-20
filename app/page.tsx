@@ -21,7 +21,7 @@ const initialOrders: Order[] = [
 ];
 
 const suggestions = [
-  { title: "Summarize today's orders", detail: "Get a quick business snapshot", icon: Activity },
+  { title: "Summarize all orders", detail: "Get a quick business snapshot", icon: Activity },
   { title: "Find pending payments", detail: "Spot orders that need attention", icon: WalletCards },
   { title: "Draft a customer follow-up", detail: "Write a helpful message", icon: MessageSquareText }
 ];
@@ -32,6 +32,7 @@ export default function Home() {
   const [orderQuery, setOrderQuery] = useState("");
   const [assistantQuery, setAssistantQuery] = useState("");
   const [assistantLoading, setAssistantLoading] = useState(false);
+  const [assistantMode, setAssistantMode] = useState<"gemini" | "rules" | "rules-fallback" | "local-fallback" | null>(null);
   const [activeNav, setActiveNav] = useState("Overview");
   const [filter, setFilter] = useState("All orders");
   const [response, setResponse] = useState("");
@@ -104,6 +105,7 @@ export default function Home() {
   async function runAssistant(prompt: string) {
     if (assistantLoading) return;
     setAssistantLoading(true);
+    setAssistantMode(null);
     setResponse("");
     const localAnswer = (message: string) => {
       const lower = message.toLowerCase();
@@ -136,13 +138,16 @@ export default function Home() {
         })
       });
       const data = await result.json();
-      if (!result.ok || typeof data.answer !== "string") throw new Error("Assistant API unavailable");
+      if (!result.ok || typeof data.answer !== "string") throw new Error(typeof data.error === "string" ? data.error : "Assistant API unavailable");
       setResponse(data.answer);
+      setAssistantMode(data.mode === "gemini" || data.mode === "rules-fallback" || data.mode === "rules" ? data.mode : "rules");
     } catch {
-      setResponse(localAnswer(prompt) + " (Local demo fallback.)");
+      setResponse(localAnswer(prompt) + " (Local demo fallback; the assistant API could not be reached.)");
+      setAssistantMode("local-fallback");
+    } finally {
+      setAssistantLoading(false);
+      setAssistantQuery("");
     }
-    setAssistantLoading(false);
-    setAssistantQuery("");
   }
 
   async function startPayPalSandboxCheckout() {
@@ -181,7 +186,7 @@ export default function Home() {
     }
     const initials = newCustomer.trim().split(/\s+/).slice(0, 2).map((part) => part[0]?.toUpperCase()).join("");
     const order: Order = {
-      id: `AF-${2049 + orders.length - initialOrders.length}`,
+      id: `AF-${crypto.randomUUID().slice(0, 8).toUpperCase()}`,
       customer: newCustomer.trim(),
       initials: initials || "CU",
       item: "New custom order",
@@ -240,7 +245,7 @@ export default function Home() {
       <section className="main-panel">
         <header className="topbar">
           <div className="topbar-left"><button className="icon-button mobile-menu-button" aria-label="Open menu" onClick={() => setMobileMenu(true)}><Menu size={20} /></button><div className="breadcrumbs">Workspace <span>/</span> <strong>{activeNav}</strong></div></div>
-          <div className="topbar-actions"><div className="status-indicator"><span /> All systems demo</div><button className="icon-button help-button" aria-label="Help" onClick={() => { setActiveNav("AI assistant"); setResponse("AgentFlow AI is in demo mode. Demo orders are saved in this browser only; they are not shared across devices or stored in a database."); }}><CircleHelp size={18} /></button><div className="top-avatar">A</div></div>
+          <div className="topbar-actions"><div className="status-indicator"><span /> Demo workspace</div><button className="icon-button help-button" aria-label="Help" onClick={() => { setActiveNav("AI assistant"); setResponse("AgentFlow AI is in demo mode. Demo orders are saved in this browser only; they are not shared across devices or stored in a database."); }}><CircleHelp size={18} /></button><div className="top-avatar">A</div></div>
         </header>
 
         <div className="page-content">
@@ -278,7 +283,7 @@ export default function Home() {
               <div className="assistant-intro"><div className="assistant-orb"><Bot size={26} /></div><h3>What can I take off<br />your plate?</h3><p>Ask me about orders, payments, or customer follow-ups. Let's get things moving.</p></div>
               <div className="suggestion-list">{suggestions.map(({ title, detail, icon: Icon }) => <button className="suggestion-item" key={title} onClick={() => runAssistant(title)}><span className="suggestion-icon"><Icon size={16} /></span><span className="suggestion-copy"><strong>{title}</strong><small>{detail}</small></span><ArrowUpRight size={15} className="suggestion-arrow" /></button>)}</div>
               {assistantLoading && <div className="assistant-response"><div><Activity size={14} /> AgentFlow is thinking…</div><p>Checking the demo order data.</p></div>}
-              {response && <div className="assistant-response"><div><Sparkles size={14} /> AgentFlow response</div><p>{response}</p><button onClick={() => setResponse("")} aria-label="Dismiss response"><X size={14} /></button></div>}
+              {response && <div className="assistant-response"><div><Sparkles size={14} /> {assistantMode === "gemini" ? "Gemini AI response" : assistantMode === "rules-fallback" ? "AI unavailable · rules fallback" : assistantMode === "local-fallback" ? "Local demo fallback" : "Demo assistant response"}</div><p>{response}</p><button onClick={() => setResponse("")} aria-label="Dismiss response"><X size={14} /></button></div>}
               <form className="assistant-composer" onSubmit={(event) => { event.preventDefault(); if (assistantQuery.trim()) runAssistant(assistantQuery); }}><input id="assistant-input" value={assistantQuery} onChange={(event) => setAssistantQuery(event.target.value)} placeholder="Ask AgentFlow anything..." /><button type="submit" aria-label="Send message" disabled={!assistantQuery.trim() || assistantLoading}><Send size={16} /></button></form>
               <div className="assistant-disclaimer"><ShieldCheck size={13} /> Demo assistant · Review before taking action</div>
             </aside>
