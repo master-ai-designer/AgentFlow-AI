@@ -6,6 +6,25 @@ type GeminiResponse = { candidates?: Array<{ content?: { parts?: Array<{ text?: 
 
 const MAX_MESSAGE_LENGTH = 1500;
 const MAX_ORDERS = 200;
+const RATE_WINDOW_MS = 60_000;
+const RATE_LIMIT = 15;
+const requestCounts = new Map<string, { count: number; resetAt: number }>();
+
+function isRateLimited(request: Request): boolean {
+  const now = Date.now();
+  const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    request.headers.get("x-real-ip") || "unknown";
+  const entry = requestCounts.get(ip);
+  if (!entry || entry.resetAt <= now) {
+    requestCounts.set(ip, { count: 1, resetAt: now + RATE_WINDOW_MS });
+    return false;
+  }
+  entry.count += 1;
+  if (requestCounts.size > 1000) {
+    for (const [key, value] of requestCounts) if (value.resetAt <= now) requestCounts.delete(key);
+  }
+  return entry.count > RATE_LIMIT;
+}
 const money = (amount: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 2 }).format(amount);
 
 function isOrder(value: unknown): value is OrderInput {
@@ -74,6 +93,9 @@ function ruleBasedAnswer(message: string, orders: OrderInput[]): string {
 }
 
 export async function POST(request: Request) {
+  if (isRateLimited(request)) {
+    return NextResponse.json({ error: "Too many assistant requests. Please wait a minute and try again." }, { status: 429 });
+  }
   let body: AssistantRequest;
   try {
     body = (await request.json()) as AssistantRequest;
