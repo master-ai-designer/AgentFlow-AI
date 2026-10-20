@@ -55,6 +55,18 @@ try {
   assert.equal(invalidOrderResponse.status, 400, "malformed order data should be rejected");
   console.log("PASS: assistant API rejects malformed order data");
 
+  let rateLimited = false;
+  for (let attempt = 0; attempt < 13; attempt += 1) {
+    const response = await fetch(`${baseUrl}/api/assistant`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message: "help" })
+    });
+    if (response.status === 429) rateLimited = true;
+  }
+  assert.equal(rateLimited, true, "assistant API should throttle repeated requests within one server instance");
+  console.log("PASS: assistant API applies its per-instance request limit");
+
   for (const [path, body] of [
     ["/api/paypal/create-order", { amount: 10, currency: "USD" }],
     ["/api/paypal/capture-order", { orderId: "SANDBOX-ORDER-123" }]
