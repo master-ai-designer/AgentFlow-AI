@@ -38,6 +38,8 @@ export default function Home() {
   const [showNewOrder, setShowNewOrder] = useState(false);
   const [newCustomer, setNewCustomer] = useState("");
   const [newAmount, setNewAmount] = useState("99");
+  const [paypalLoading, setPaypalLoading] = useState(false);
+  const [paypalMessage, setPaypalMessage] = useState("");
 
   useEffect(() => {
     try {
@@ -136,6 +138,34 @@ export default function Home() {
     }
     setAssistantLoading(false);
     setAssistantQuery("");
+  }
+
+  async function startPayPalSandboxCheckout() {
+    if (paypalLoading) return;
+    setPaypalLoading(true);
+    setPaypalMessage("");
+    try {
+      const response = await fetch("/api/paypal/create-order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ amount: 1, currency: "USD" })
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(typeof data.error === "string" ? data.error : "Could not create a Sandbox checkout.");
+      const approvalUrl = Array.isArray(data.links)
+        ? data.links.find((link: { rel?: string; href?: string }) => ["approve", "payer-action"].includes(link.rel || ""))?.href
+        : undefined;
+      if (typeof approvalUrl !== "string") throw new Error("PayPal did not return an approval link.");
+      const url = new URL(approvalUrl);
+      if (url.protocol !== "https:" || url.hostname !== "www.sandbox.paypal.com") {
+        throw new Error("PayPal returned an unexpected approval URL; checkout was stopped.");
+      }
+      window.location.assign(url.toString());
+    } catch (error) {
+      setPaypalMessage(error instanceof Error ? error.message : "Could not start the Sandbox checkout.");
+    } finally {
+      setPaypalLoading(false);
+    }
   }
 
   function addOrder() {
@@ -255,7 +285,7 @@ export default function Home() {
             <section className="workspace-panel">
               <div className="section-heading"><div><h2>Integrations</h2><p>Connect external services when you're ready to configure credentials.</p></div></div>
               <div className="bottom-row">
-                <article className="bottom-card"><div className="bottom-icon paypal-icon"><WalletCards size={18} /></div><div><strong>PayPal Sandbox</strong><p>Server routes exist; credentials and checkout UI are not connected.</p><span className="coming-soon">NOT CONFIGURED</span></div></article>
+                <article className="bottom-card"><div className="bottom-icon paypal-icon"><WalletCards size={18} /></div><div><strong>PayPal Sandbox</strong><p>Create a $1 test checkout and verify the approval/capture flow.</p><span className="coming-soon">SANDBOX ONLY</span><button className="secondary-button" style={{ position: "static", marginTop: "10px" }} disabled={paypalLoading} onClick={startPayPalSandboxCheckout}>{paypalLoading ? "Preparing checkout…" : "Test $1 Sandbox checkout"}</button>{paypalMessage && <small role="status" style={{ display: "block", marginTop: "8px", color: "#b54735" }}>{paypalMessage}</small>}</div></article>
                 <article className="bottom-card"><div className="bottom-icon"><Store size={18} /></div><div><strong>Store platform</strong><p>No Shopify, WooCommerce, or live store connection is configured.</p><span className="coming-soon">NOT CONNECTED</span></div></article>
                 <article className="bottom-card"><div className="bottom-icon green"><Bot size={18} /></div><div><strong>AI provider</strong><p>Gemini is optional; without a server-side GEMINI_API_KEY, the assistant uses rules.</p><span className="coming-soon">RULE-BASED</span></div></article>
               </div>
