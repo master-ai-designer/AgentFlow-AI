@@ -13,7 +13,7 @@ type OrderStatus = "Paid" | "Processing" | "Pending" | "Refunded";
 type Order = { id: string; customer: string; initials: string; item: string; date: string; amount: number; status: OrderStatus };
 
 const initialOrders: Order[] = [
-  { id: "AF-2048", customer: "Olivia Rhye", initials: "OR", item: "Studio headphones", date: "Oct 20, 2026", amount: 249, status: "Paid" },
+  { id: "AF-2048", customer: "Olivia Rhye", initials: "OR", item: "Studio headphones", date: new Intl.DateTimeFormat("en-US", { month: "short", day: "2-digit", year: "numeric" }).format(new Date()), amount: 249, status: "Paid" },
   { id: "AF-2047", customer: "Phoenix Baker", initials: "PB", item: "Desk lamp · Matte black", date: "Oct 20, 2026", amount: 89, status: "Processing" },
   { id: "AF-2046", customer: "Lana Steiner", initials: "LS", item: "Everyday carry set", date: "Oct 19, 2026", amount: 136, status: "Pending" },
   { id: "AF-2045", customer: "Demi Wilkinson", initials: "DW", item: "Wireless keyboard", date: "Oct 19, 2026", amount: 179, status: "Paid" },
@@ -28,7 +28,9 @@ const suggestions = [
 
 export default function Home() {
   const [orders, setOrders] = useState(initialOrders);
-  const [query, setQuery] = useState("");
+  const [orderQuery, setOrderQuery] = useState("");
+  const [assistantQuery, setAssistantQuery] = useState("");
+  const [assistantLoading, setAssistantLoading] = useState(false);
   const [activeNav, setActiveNav] = useState("Overview");
   const [filter, setFilter] = useState("All orders");
   const [response, setResponse] = useState("");
@@ -38,14 +40,19 @@ export default function Home() {
   const [newAmount, setNewAmount] = useState("99");
 
   const visibleOrders = useMemo(() => orders.filter((order) => {
-    const matchesSearch = [order.id, order.customer, order.item].some((value) => value.toLowerCase().includes(query.toLowerCase()));
+    const matchesSearch = [order.id, order.customer, order.item].some((value) => value.toLowerCase().includes(orderQuery.toLowerCase()));
     const matchesFilter = filter === "All orders" || order.status === filter;
     return matchesSearch && matchesFilter;
-  }), [orders, query, filter]);
+  }), [orders, orderQuery, filter]);
 
-  const money = (amount: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(amount);
+  const money = (amount: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 2 }).format(amount);
+  const totalOrderValue = orders.filter((order) => order.status !== "Refunded").reduce((sum, order) => sum + order.amount, 0);
+  const activeCustomerCount = new Set(orders.map((order) => order.customer.trim().toLowerCase()).filter(Boolean)).size;
 
   async function runAssistant(prompt: string) {
+    if (assistantLoading) return;
+    setAssistantLoading(true);
+    setResponse("");
     const localAnswer = (message: string) => {
       const lower = message.toLowerCase();
       if (lower.includes("pending") || lower.includes("payment")) {
@@ -82,12 +89,16 @@ export default function Home() {
     } catch {
       setResponse(localAnswer(prompt) + " (Local demo fallback.)");
     }
-    setQuery("");
+    setAssistantLoading(false);
+    setAssistantQuery("");
   }
 
   function addOrder() {
     const amount = Number(newAmount);
-    if (!newCustomer.trim() || !Number.isFinite(amount) || amount <= 0) return;
+    if (!newCustomer.trim() || newCustomer.trim().length > 100 || !Number.isFinite(amount) || amount <= 0 || amount > 10000) {
+      setResponse("Enter a customer name (up to 100 characters) and an amount between $0.01 and $10,000.");
+      return;
+    }
     const initials = newCustomer.trim().split(/\s+/).slice(0, 2).map((part) => part[0]?.toUpperCase()).join("");
     const order: Order = {
       id: `AF-${2049 + orders.length - initialOrders.length}`,
@@ -163,16 +174,16 @@ export default function Home() {
           <div className="section-heading"><div><h2>Business overview</h2><p>A quick look at your store's performance.</p></div><button className="period-button">Last 7 days <ChevronDown size={15} /></button></div>
 
           <div className="metrics-grid">
-            <article className="metric-card"><div className="metric-top"><span>Total order value</span><span className="metric-icon purple"><WalletCards size={17} /></span></div><div className="metric-value">$2,840<span className="metric-change positive"><ArrowUpRight size={14} /> 12.8%</span></div><div className="metric-foot">Compared to previous 7 days</div><div className="sparkline spark-purple"><i /><i /><i /><i /><i /><i /><i /><i /><i /><i /><i /><i /></div></article>
-            <article className="metric-card"><div className="metric-top"><span>Orders</span><span className="metric-icon blue"><Package size={17} /></span></div><div className="metric-value">{orders.length + 123}<span className="metric-change positive"><ArrowUpRight size={14} /> 8.2%</span></div><div className="metric-foot">Across all order statuses</div><div className="sparkline spark-blue"><i /><i /><i /><i /><i /><i /><i /><i /><i /><i /><i /><i /></div></article>
+            <article className="metric-card"><div className="metric-top"><span>Total order value</span><span className="metric-icon purple"><WalletCards size={17} /></span></div><div className="metric-value">{money(totalOrderValue)}</div><div className="metric-foot">Compared to previous 7 days</div><div className="sparkline spark-purple"><i /><i /><i /><i /><i /><i /><i /><i /><i /><i /><i /><i /></div></article>
+            <article className="metric-card"><div className="metric-top"><span>Orders</span><span className="metric-icon blue"><Package size={17} /></span></div><div className="metric-value">{orders.length}</div><div className="metric-foot">Across all order statuses</div><div className="sparkline spark-blue"><i /><i /><i /><i /><i /><i /><i /><i /><i /><i /><i /><i /></div></article>
             <article className="metric-card"><div className="metric-top"><span>Pending payments</span><span className="metric-icon amber"><CreditCard size={17} /></span></div><div className="metric-value">{orders.filter((order) => order.status === "Pending").length}<span className="metric-subtle">needs attention</span></div><div className="metric-foot">Review before fulfilling orders</div><div className="metric-progress"><span style={{ width: "32%" }} /></div></article>
-            <article className="metric-card"><div className="metric-top"><span>Active customers</span><span className="metric-icon green"><Users size={17} /></span></div><div className="metric-value">86<span className="metric-change positive"><ArrowUpRight size={14} /> 4.6%</span></div><div className="metric-foot">Returning and new customers</div><div className="sparkline spark-green"><i /><i /><i /><i /><i /><i /><i /><i /><i /><i /><i /><i /></div></article>
+            <article className="metric-card"><div className="metric-top"><span>Active customers</span><span className="metric-icon green"><Users size={17} /></span></div><div className="metric-value">{activeCustomerCount}</div><div className="metric-foot">Returning and new customers</div><div className="sparkline spark-green"><i /><i /><i /><i /><i /><i /><i /><i /><i /><i /><i /><i /></div></article>
           </div>
 
           <div className="content-grid">
             <section className="orders-card">
               <div className="card-heading"><div><h2>{activeNav === "Payments" ? "Payment activity" : activeNav === "Customers" ? "Recent customers" : "Recent orders"}</h2><p>Keep an eye on what needs your attention.</p></div><button className="text-button" onClick={() => { setActiveNav("Orders"); setFilter("All orders"); }}>View all <ArrowUpRightFromSquare size={14} /></button></div>
-              <div className="table-toolbar"><div className="search-field"><Search size={16} /><input aria-label="Search orders" placeholder="Search orders..." value={query} onChange={(event) => setQuery(event.target.value)} /><kbd>⌘ K</kbd></div><select aria-label="Filter by order status" value={filter} onChange={(event) => setFilter(event.target.value)}><option>All orders</option><option>Paid</option><option>Processing</option><option>Pending</option><option>Refunded</option></select><button className="filter-button" aria-label="Filter orders" onClick={() => setFilter(filter === "All orders" ? "Pending" : "All orders")}><Filter size={16} /></button></div>
+              <div className="table-toolbar"><div className="search-field"><Search size={16} /><input aria-label="Search orders" placeholder="Search orders..." value={orderQuery} onChange={(event) => setOrderQuery(event.target.value)} /><kbd>⌘ K</kbd></div><select aria-label="Filter by order status" value={filter} onChange={(event) => setFilter(event.target.value)}><option>All orders</option><option>Paid</option><option>Processing</option><option>Pending</option><option>Refunded</option></select><button className="filter-button" aria-label="Filter orders" onClick={() => setFilter(filter === "All orders" ? "Pending" : "All orders")}><Filter size={16} /></button></div>
               <div className="orders-table-wrap"><table className="orders-table"><thead><tr><th>ORDER</th><th>CUSTOMER</th><th>ITEM</th><th>AMOUNT</th><th>STATUS</th><th /></tr></thead><tbody>
                 {visibleOrders.map((order) => <tr key={order.id}><td><span className="order-id">{order.id}</span><span className="order-date">{order.date}</span></td><td><div className="customer-cell"><span className="customer-avatar">{order.initials}</span><span>{order.customer}</span></div></td><td><span className="item-name">{order.item}</span></td><td><strong className="amount">{money(order.amount)}</strong></td><td><span className={`status-badge status-${order.status.toLowerCase()}`}><i />{order.status}</span></td><td><button className="row-more" aria-label={`More options for ${order.id}`} onClick={() => setResponse(`${order.id}: ${order.customer} · ${money(order.amount)} · ${order.status}. Demo record only.`)}><Ellipsis size={18} /></button></td></tr>)}
                 {visibleOrders.length === 0 && <tr><td colSpan={6} className="empty-state">No orders match your search.</td></tr>}
@@ -184,8 +195,9 @@ export default function Home() {
               <div className="assistant-header"><div className="assistant-brand"><div className="assistant-mark"><Sparkles size={17} /></div><div><h2>Your AI teammate</h2><span><i /> Ready to help</span></div></div><button className="icon-button" aria-label="Assistant options" onClick={() => setResponse("AgentFlow AI assistant · Demo mode · No external actions enabled.")}><Ellipsis size={19} /></button></div>
               <div className="assistant-intro"><div className="assistant-orb"><Bot size={26} /></div><h3>What can I take off<br />your plate?</h3><p>Ask me about orders, payments, or customer follow-ups. Let's get things moving.</p></div>
               <div className="suggestion-list">{suggestions.map(({ title, detail, icon: Icon }) => <button className="suggestion-item" key={title} onClick={() => runAssistant(title)}><span className="suggestion-icon"><Icon size={16} /></span><span className="suggestion-copy"><strong>{title}</strong><small>{detail}</small></span><ArrowUpRight size={15} className="suggestion-arrow" /></button>)}</div>
+              {assistantLoading && <div className="assistant-response"><div><Activity size={14} /> AgentFlow is thinking…</div><p>Checking the demo order data.</p></div>}
               {response && <div className="assistant-response"><div><Sparkles size={14} /> AgentFlow response</div><p>{response}</p><button onClick={() => setResponse("")} aria-label="Dismiss response"><X size={14} /></button></div>}
-              <form className="assistant-composer" onSubmit={(event) => { event.preventDefault(); if (query.trim()) runAssistant(query); }}><input id="assistant-input" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Ask AgentFlow anything..." /><button type="submit" aria-label="Send message" disabled={!query.trim()}><Send size={16} /></button></form>
+              <form className="assistant-composer" onSubmit={(event) => { event.preventDefault(); if (assistantQuery.trim()) runAssistant(assistantQuery); }}><input id="assistant-input" value={assistantQuery} onChange={(event) => setAssistantQuery(event.target.value)} placeholder="Ask AgentFlow anything..." /><button type="submit" aria-label="Send message" disabled={!assistantQuery.trim() || assistantLoading}><Send size={16} /></button></form>
               <div className="assistant-disclaimer"><ShieldCheck size={13} /> Demo assistant · Review before taking action</div>
             </aside>
           </div>
