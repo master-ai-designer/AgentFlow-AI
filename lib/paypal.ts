@@ -41,3 +41,13 @@ export async function getPayPalAccessToken(): Promise<string> {
 export function paypalApiUrl(path: string) {
   return `${PAYPAL_BASE_URL}${path}`;
 }
+
+export function isSameOriginRequest(request: Request): boolean {
+  const origin = request.headers.get("origin");
+  if (!origin) return false;
+  try {
+    return new URL(origin).origin === new URL(request.url).origin;
+  } catch {
+    return false;
+  }
+}
